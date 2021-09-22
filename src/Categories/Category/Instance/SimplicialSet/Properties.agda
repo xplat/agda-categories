@@ -9,7 +9,8 @@ open import Function using (_$_)
 open import Data.Empty.Polymorphic using (⊥; ⊥-elim)
 open import Data.Nat using (ℕ)
 open import Data.Fin using (Fin)
-open import Data.Product using (proj₁)
+open import Data.Product using (proj₁; _,_)
+open import Function.Equality using (_⟶_)
 
 import Relation.Binary.PropositionalEquality as Eq
 
@@ -21,7 +22,7 @@ open import Categories.Functor using (Functor; _∘F_)
 open import Categories.Functor.Construction.Constant using (const)
 open import Categories.Functor.Construction.LiftSetoids using (LiftSetoids)
 
-open import Categories.NaturalTransformation using (ntHelper)
+open import Categories.NaturalTransformation using (NaturalTransformation; ntHelper)
 
 open import Categories.Yoneda
 
@@ -56,7 +57,7 @@ record Boundary (m n-1 : ℕ) : Set where
   field
     hom : Δ [ m , n ]
     factor : Δ [ m , n-1 ]
-    factor-dim : Fin n
+    factor-dim : Fin (ℕ.suc n)
     factor-face : Δ [ hom ≈ Δ [ δ factor-dim ∘ factor ] ]
 
 -- Lift morphisms in Δ to maps between boundary sets on 'Δ[ n ]'
@@ -72,7 +73,7 @@ boundary-map {n = n} f b = record
     open Boundary
 
 -- The boundary of an n-simplex
-∂Δ[_] : ℕ → ΔSet 
+∂Δ[_] : ℕ → ΔSet
 ∂Δ[_] ℕ.zero = const record
   { Carrier = ⊥
   ; _≈_ = λ ()
@@ -114,7 +115,7 @@ boundary-map {n = n} f b = record
 -- The idea here is essentially the same as the boundaries, but we exclude the kth
 -- face map as a possible factor.
 
-record Horn (m n-1 : ℕ) (k : Fin (ℕ.suc n-1)) : Set where
+record Horn (m n-1 : ℕ) (k : Fin (ℕ.suc (ℕ.suc n-1))) : Set where
   field
     horn : Boundary m n-1
 
@@ -123,7 +124,12 @@ record Horn (m n-1 : ℕ) (k : Fin (ℕ.suc n-1)) : Set where
   field
     is-horn : factor-dim Eq.≢ k
 
-Λ[_,_] : (n : ℕ) → Fin n → ΔSet
+Λ[_,_] : (n : ℕ) → Fin (ℕ.suc n) → ΔSet
+Λ[ ℕ.zero , k ] = const (record
+  { Carrier = ⊥
+  ; _≈_ = λ ()
+  ; isEquivalence = record { refl = λ {} ; sym = λ {} ; trans = λ {} }
+  })
 Λ[ ℕ.suc n , k ] = record
   { F₀ = λ m → record
     { Carrier = Lift o (Horn m n k)
@@ -180,7 +186,14 @@ module _ where
       open Boundary
 
   -- Inclusion of n-horns into n-simplicies
-  Λ-inj : ∀ {n} → (k : Fin n) → Λ[ n , k ] ⇒ Δ[ n ]
+  Λ-inj : ∀ {n} → (k : Fin (ℕ.suc n)) → Λ[ n , k ] ⇒ Δ[ n ]
+  Λ-inj {n = ℕ.zero} k = ntHelper record
+    { η = λ X → record
+      { _⟨$⟩_ = λ ()
+      ; cong = λ {}
+      }
+    ; commute = λ _ {}
+    }
   Λ-inj {n = ℕ.suc n} k = ntHelper record
     { η = λ X → record
       { _⟨$⟩_ = λ (lift h) → lift (hom h)
@@ -190,3 +203,7 @@ module _ where
     }
     where
       open Horn
+
+-- Specialized Yoneda lemma
+Δ-yoneda : (X : ΔSet) (n : ℕ) → (Functor.F₀ X n ⟶ (Category.hom-setoid (SimplicialSet o ℓ) {Δ[ n ]} {X}))
+Δ-yoneda X n = {! NaturalTransformation.η Yoneda.yoneda.F⇐G (X , n) !}

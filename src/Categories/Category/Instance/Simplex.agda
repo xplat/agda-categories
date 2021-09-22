@@ -84,8 +84,8 @@ open _≗_ public
 -- arguments when trying to prove equalities, as well as being able to define functors
 -- out of Δ via their action on face/degeneracy maps.
 
-Δ : Category 0ℓ 0ℓ 0ℓ
-Δ = record
+Δ₀ : Category 0ℓ 0ℓ 0ℓ
+Δ₀ = record
   { Obj = ℕ
   ; _⇒_ = _Δ⇒_
   ; _≈_ = _≗_
@@ -104,10 +104,43 @@ open _≗_ public
   ; ∘-resp-≈ = λ {_ _ _ f g h i} eq₁ eq₂ → Δ-eq (trans (cong ⟦ f ⟧ (Δ-pointwise eq₂)) (Δ-pointwise eq₁))
   }
 
+Δ : Category 0ℓ 0ℓ 0ℓ
+Δ = record
+  { Obj = ℕ
+  ; _⇒_ = λ m n -> suc m Δ⇒ suc n
+  ; _≈_ = _≗_
+  ; id = ε
+  ; _∘_ = _⊚_
+  ; assoc = Δ-eq refl
+  ; sym-assoc = Δ-eq refl
+  ; identityˡ = Δ-eq refl
+  ; identityʳ = Δ-eq refl
+  ; identity² = Δ-eq refl
+  ; equiv = record
+    { refl = Δ-eq refl
+    ; sym = λ eq → Δ-eq (sym (Δ-pointwise eq))
+    ; trans = λ eq₁ eq₂ → Δ-eq (trans (Δ-pointwise eq₁) (Δ-pointwise eq₂))
+    }
+  ; ∘-resp-≈ = λ {_ _ _ f g h i} eq₁ eq₂ → Δ-eq (trans (cong ⟦ f ⟧ (Δ-pointwise eq₂)) (Δ-pointwise eq₁))
+  }
+
+
+-- The morphisms in the simplicial category are *monotone* functions
+
+Δ-monotone : ∀ {m n} (f : m Δ⇒ n) {i j} (i≤j : i ≤ j) -> ⟦ f ⟧ i ≤ ⟦ f ⟧ j
+Δ-monotone {m} {.m} ε {i} {j} i≤j = i≤j
+Δ-monotone {m} {.(suc m)} (δ zero) {i} {j} i≤j = s≤s i≤j
+Δ-monotone {.(suc _)} {.(suc (suc _))} (δ (suc k)) {zero} {j} z≤n = z≤n
+Δ-monotone {.(suc _)} {.(suc (suc _))} (δ (suc k)) {suc i} {suc j} (s≤s i≤j) = s≤s (Δ-monotone (δ k) i≤j)
+Δ-monotone {.(suc (suc _))} {.(suc _)} (σ zero) {zero} {j} z≤n = z≤n
+Δ-monotone {.(suc (suc _))} {.(suc _)} (σ zero) {suc i} {suc j} (s≤s i≤j) = i≤j
+Δ-monotone {.(suc (suc _))} {.(suc _)} (σ (suc k)) {zero} {j} z≤n = z≤n
+Δ-monotone {.(suc (suc _))} {.(suc _)} (σ (suc k)) {suc i} {suc j} (s≤s i≤j) = s≤s (Δ-monotone (σ k) i≤j)
+Δ-monotone {m} {n} (f ⊚ g) {i} {j} i≤j = Δ-monotone f (Δ-monotone g i≤j)
 
 -- For completeness, here are the aforementioned simplical identities. These may seem /slightly/
 -- different than the ones presented before, but it's just re-indexing to avoid having to use 'pred'.
-open Category Δ
+open Category Δ₀
 
 -- δᵢ ∘ δⱼ = δⱼ₊₁ ∘ δᵢ if i ≤ j
 face-comm : ∀ {n} (i j : Fin (suc n))  → i ≤ j → δ (inject₁ i) ∘ δ j ≈ δ (suc j) ∘ δ i

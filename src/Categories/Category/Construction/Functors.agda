@@ -22,7 +22,7 @@ import Categories.Morphism.Reasoning as MR
 
 private
   variable
-    o ℓ e o′ ℓ′ e′ : Level
+    o ℓ e o′ ℓ′ e′ o′′ ℓ′′ e′′ : Level
     C D C₁ C₂ : Category o ℓ e
 
 -- The reason the proofs below are so easy is that _∘ᵥ_ 'computes' all the way down into
@@ -144,7 +144,7 @@ module curry {o₁ e₁ ℓ₁} {C₁ : Category o₁ e₁ ℓ₁}
     }
 
 -- Godement product ?
-product : {A B C : Category o ℓ e} → Bifunctor (Functors B C) (Functors A B) (Functors A C)
+product : {A : Category o ℓ e} {B : Category o′ ℓ′ e′} {C : Category o′′ ℓ′′ e′′} → Bifunctor (Functors B C) (Functors A B) (Functors A C)
 product {A = A} {B = B} {C = C} = record
   { F₀ = uncurry′ _∘F_
   ; F₁ = uncurry′ _∘ₕ_
@@ -240,3 +240,6 @@ Functorsᵒᵖ-equiv A B = record
         open MR B
 
 module Functorsᵒᵖ-equiv {o ℓ e o′ ℓ′ e′} (A : Category o ℓ e) (B : Category o′ ℓ′ e′) = ⊣Equivalence (Functorsᵒᵖ-equiv A B)
+
+Precompose : {A : Category o ℓ e} {B : Category o′ ℓ′ e′} {C : Category o′′ ℓ′′ e′′} → Functor (Functors A B) (Functors (Functors B C) (Functors A C))
+Precompose = curry.F₀ (flip-bifunctor product)

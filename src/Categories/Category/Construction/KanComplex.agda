@@ -50,12 +50,12 @@ inner i = Fin.suc (inject₁ i)
 --
 -- To avoid this, we only allow an missing face index that ranges from 0 to n-2, and then embed that index
 -- into the full range of face indexes via 'inner'. This does require us to shift our indexes around a bit.
--- To make this indexing more obvious, we use the suggestively named variable 'n-2'.
+-- To make this indexing more obvious, we use the suggestively named variable 'n-1'.
 record IsWeakKanComplex (X : ΔSet) : Set (o ⊔ ℓ) where
   field
-    filler      : ∀ {n-2} {k : Fin n-2} → Λ[ ℕ.suc (ℕ.suc n-2) , inner k ] ⇒ X → Δ[ ℕ.suc (ℕ.suc n-2) ] ⇒ X
-    filler-cong : ∀ {n-2} {k : Fin n-2} → {f g : Λ[ ℕ.suc (ℕ.suc n-2) , inner k ] ⇒ X} → f ≈ g → filler f ≈ filler g
-    is-filler   : ∀ {n-2} {k : Fin n-2} → (f : Λ[ ℕ.suc (ℕ.suc n-2) , inner k ] ⇒ X) → filler f ∘ Λ-inj (inner k) ≈ f
+    filler      : ∀ {n-1} {k : Fin n-1} → Λ[ ℕ.suc n-1 , inner k ] ⇒ X → Δ[ ℕ.suc n-1 ] ⇒ X
+    filler-cong : ∀ {n-1} {k : Fin n-1} → {f g : Λ[ ℕ.suc n-1 , inner k ] ⇒ X} → f ≈ g → filler f ≈ filler g
+    is-filler   : ∀ {n-1} {k : Fin n-1} → (f : Λ[ ℕ.suc n-1 , inner k ] ⇒ X) → filler f ∘ Λ-inj (inner k) ≈ f
 
 KanComplex⇒WeakKanComplex : ∀ {X} → IsKanComplex X → IsWeakKanComplex X
 KanComplex⇒WeakKanComplex complex = record { IsKanComplex complex }
