@@ -243,3 +243,6 @@ module Functorsᵒᵖ-equiv {o ℓ e o′ ℓ′ e′} (A : Category o ℓ e) (B
 
 Precompose : {A : Category o ℓ e} {B : Category o′ ℓ′ e′} {C : Category o′′ ℓ′′ e′′} → Functor (Functors A B) (Functors (Functors B C) (Functors A C))
 Precompose = curry.F₀ (flip-bifunctor product)
+
+Postcompose : {A : Category o ℓ e} {B : Category o′ ℓ′ e′} {C : Category o′′ ℓ′′ e′′} → Functor (Functors B C) (Functors (Functors A B) (Functors A C))
+Postcompose = curry.F₀ product

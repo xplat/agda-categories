@@ -30,6 +30,12 @@ LiftedSetoid c′ ℓ′ S = record
   }
   where open Setoid S
 
+liftSetoid : ∀ c′ ℓ′ (X : Setoid c ℓ) → X ⟶ LiftedSetoid c′ ℓ′ X
+liftSetoid c′ ℓ′ X = record { _⟨$⟩_ = lift ; cong = lift }
+
+lowerSetoid : ∀ c′ ℓ′ (X : Setoid c ℓ) → LiftedSetoid c′ ℓ′ X ⟶ X
+lowerSetoid c′ ℓ′ X = record { _⟨$⟩_ = lower ; cong = lower }
+
 LiftSetoids : ∀ c′ ℓ′ → Functor (Setoids c ℓ) (Setoids (c ⊔ c′) (ℓ ⊔ ℓ′))
 LiftSetoids c′ ℓ′ = record
   { F₀           = LiftedSetoid c′ ℓ′
