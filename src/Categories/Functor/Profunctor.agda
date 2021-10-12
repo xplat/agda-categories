@@ -3,7 +3,9 @@
 module Categories.Functor.Profunctor where
 
 open import Level
+open import Data.Empty using (⊥)
 open import Data.Product using (_,_; _×_)
+open import Data.Sum using (_⊎_; inj₁; inj₂)
 open import Function using () renaming (_∘′_ to _∙_)
 open import Function.Equality using (_⟨$⟩_; cong)
 open import Relation.Binary using (Setoid; module Setoid)
@@ -18,11 +20,12 @@ open import Categories.Category.Product using ()
 open import Categories.Functor hiding (id)
 open import Categories.Functor.Bifunctor using (Bifunctor; appˡ; appʳ)
 open import Categories.Functor.Bifunctor.Properties using ([_]-commute)
-open import Categories.Functor.Construction.LiftSetoids using (LiftSetoids)
+open import Categories.Functor.Construction.LiftSetoids using (LiftSetoids; liftSetoid; lowerSetoid)
 open import Categories.Functor.Hom using (Hom[_][-,-])
 open import Categories.Morphism.Reasoning using (id-comm; id-comm-sym)
-open import Categories.NaturalTransformation using (NaturalTransformation)
+open import Categories.NaturalTransformation using (NaturalTransformation; _∘ᵥ_; _∘ˡ_)
 open import Categories.NaturalTransformation.NaturalIsomorphism using (NaturalIsomorphism)
+open import Categories.NaturalTransformation.Properties using (appˡ-nat; appʳ-nat)
 
 open Setoid renaming (_≈_ to _[[_≈_]])
 
@@ -31,6 +34,98 @@ record Profunctor {o ℓ e} {o′ ℓ′ e′} ℓ″ e″ (C : Category o ℓ e
   field
     bimodule : Bifunctor (Category.op D) C (Setoids (ℓ ⊔ ℓ′ ⊔ ℓ″) (e ⊔ e′ ⊔ e″))
   open Bifunctor bimodule public
+
+  cograph : Category _ _ _
+  cograph = record
+    { Obj = D.Obj ⊎ C.Obj
+    ; _⇒_ = λ
+      { (inj₁ d) (inj₁ d′) → Lift (ℓ ⊔ ℓ″) (D [ d , d′ ])
+      ; (inj₁ d) (inj₂ c) → Setoid.Carrier (F₀ (d , c))
+      ; (inj₂ c) (inj₁ d) → Lift _ ⊥
+      ; (inj₂ c) (inj₂ c′) → Lift (ℓ′ ⊔ ℓ″) (C [ c , c′ ])
+      }
+    ; _≈_ = λ
+      { {inj₁ d} {inj₁ d′} f g → Lift (e ⊔ e″) (D [ lower f ≈ lower g ])
+      ; {inj₁ d} {inj₂ c} p q → Setoid._≈_ (F₀ (d , c)) p q
+      ; {inj₂ c} {inj₁ d} () ()
+      ; {inj₂ c} {inj₂ c′} f g → Lift (e′ ⊔ e″) (C [ lower f ≈ lower g ])
+      }
+    ; id = λ
+      { {inj₁ d} → lift D.id
+      ; {inj₂ c} → lift C.id
+      }
+    ; _∘_ = λ
+      { {inj₁ dA} {inj₁ dB} {inj₁ dC} f g → lift (D [ lower f ∘ lower g ])
+      ; {inj₁ dA} {inj₁ dB} {inj₂ cC} p g → ₁ˡ (lower g) ⟨$⟩ p
+      ; {inj₁ dA} {inj₂ cB} {inj₂ cC} f q → ₁ʳ (lower f) ⟨$⟩ q
+      ; {inj₂ cA} {inj₂ cB} {inj₂ cC} f g → lift (C [ lower f ∘ lower g ])
+      }
+    ; assoc = λ
+      { {inj₁ dA} {inj₁ dB} {inj₁ dC} {inj₁ dD} {f} {g} {h} → lift D.assoc
+      ; {inj₁ dA} {inj₁ dB} {inj₁ dC} {inj₂ cD} {f} {g} {r} → Setoid.sym (F₀ _) (homomorphismˡ (Setoid.refl (F₀ _)))
+      ; {inj₁ dA} {inj₁ dB} {inj₂ cC} {inj₂ cD} {f} {q} {h} → Setoid.sym (F₀ _) ([ bimodule ]-commute (Setoid.refl (F₀ _)))
+      ; {inj₁ dA} {inj₂ cB} {inj₂ cC} {inj₂ cD} {p} {g} {h} → homomorphismʳ (Setoid.refl (F₀ _))
+      ; {inj₂ cA} {inj₂ cB} {inj₂ cC} {inj₂ cD} {f} {g} {h} → lift C.assoc
+      }
+    ; sym-assoc = λ
+      { {inj₁ dA} {inj₁ dB} {inj₁ dC} {inj₁ dD} {f} {g} {h} → lift D.sym-assoc
+      ; {inj₁ dA} {inj₁ dB} {inj₁ dC} {inj₂ cD} {f} {g} {r} → homomorphismˡ (Setoid.refl (F₀ _))
+      ; {inj₁ dA} {inj₁ dB} {inj₂ cC} {inj₂ cD} {f} {q} {h} → [ bimodule ]-commute (Setoid.refl (F₀ _))
+      ; {inj₁ dA} {inj₂ cB} {inj₂ cC} {inj₂ cD} {p} {g} {h} → Setoid.sym (F₀ _) (homomorphismʳ (Setoid.refl (F₀ _)))
+      ; {inj₂ cA} {inj₂ cB} {inj₂ cC} {inj₂ cD} {f} {g} {h} → lift C.sym-assoc
+      }
+    ; identityˡ = λ
+      { {inj₁ dA} {inj₁ dB} {f} → lift D.identityˡ
+      ; {inj₁ dA} {inj₂ cB} {p} → identity (Setoid.refl (F₀ _))
+      ; {inj₂ cA} {inj₂ cB} {f} → lift C.identityˡ
+      }
+    ; identityʳ = λ
+      { {inj₁ dA} {inj₁ dB} {f} → lift D.identityʳ
+      ; {inj₁ dA} {inj₂ cB} {p} → identity (Setoid.refl (F₀ _))
+      ; {inj₂ cA} {inj₂ cB} {f} → lift C.identityʳ
+      }
+    ; identity² = λ
+      { {inj₁ d} → lift D.identity²
+      ; {inj₂ c} → lift C.identity²
+      }
+    ; equiv = λ
+      { {inj₁ dA} {inj₁ dB} → record { refl = lift D.Equiv.refl ; sym = λ x → lift (D.Equiv.sym (lower x)) ; trans = λ x y → lift (D.Equiv.trans (lower x) (lower y)) }
+      ; {inj₁ dA} {inj₂ cB} → record { refl = Setoid.refl (F₀ _) ; sym = Setoid.sym (F₀ _) ; trans = Setoid.trans (F₀ _) }
+      ; {inj₂ cA} {inj₁ dB} → record { refl = λ {} ; sym = λ {} ; trans = λ {} }
+      ; {inj₂ cA} {inj₂ cB} → record { refl = lift C.Equiv.refl ; sym = λ x → lift (C.Equiv.sym (lower x)) ; trans = λ x y → lift (C.Equiv.trans (lower x) (lower y)) }}
+    ; ∘-resp-≈ = λ
+      { {inj₁ dA} {inj₁ dB} {inj₁ dC} {f} {h} {g} {i} → λ x y → lift (D.∘-resp-≈ (lower x) (lower y))
+      ; {inj₁ dA} {inj₁ dB} {inj₂ cC} {f} {h} {g} {i} → λ f≈h g≈i → resp-≈ˡ (lower g≈i) f≈h
+      ; {inj₁ dA} {inj₂ cB} {inj₂ cC} {f} {h} {g} {i} → λ f≈h g≈i → resp-≈ʳ (lower f≈h) g≈i
+      ; {inj₂ cA} {inj₂ cB} {inj₂ cC} {f} {h} {g} {i} → λ x y → lift (C.∘-resp-≈ (lower x) (lower y))
+      }
+    }
+    where
+    module C = Category C
+    module D = Category D
+
+  module cograph where
+    open Category cograph public
+
+    Inj₁ : Functor D cograph
+    Inj₁ = record
+      { F₀ = inj₁
+      ; F₁ = lift
+      ; identity = lift (Category.Equiv.refl D)
+      ; homomorphism = lift (Category.Equiv.refl D)
+      ; F-resp-≈ = lift
+      }
+    module Inj₁ = Functor Inj₁
+
+    Inj₂ : Functor C cograph
+    Inj₂ = record
+      { F₀ = inj₂
+      ; F₁ = lift
+      ; identity = lift (Category.Equiv.refl C)
+      ; homomorphism = lift (Category.Equiv.refl C)
+      ; F-resp-≈ = lift
+      }
+    module Inj₂ = Functor Inj₂
 
 id : ∀ {o ℓ e} → {C : Category o ℓ e} → Profunctor zero zero C C
 id {C = C} = pro (Hom[ C ][-,-])
@@ -266,45 +361,37 @@ _ⓟ′_ {C = C} {D = D} {E = E} P Q = record
 _ⓟ_ : ∀ {oC ℓC eC oD ℓD eD oE ℓE eE ℓP eP ℓQ eQ} {C : Category oC ℓC eC} {D : Category oD ℓD eD} {E : Category oE ℓE eE} (P : Profunctor ℓP eP D E) (Q : Profunctor ℓQ eQ C D) → Profunctor (oD ⊔ ℓD ⊔ ℓP ⊔ ℓQ) (ℓC ⊔ oD ⊔ ℓD ⊔ eD ⊔ ℓE ⊔ ℓP ⊔ eP ⊔ ℓQ ⊔ eQ) C E
 _ⓟ_ P Q = pro (Π₀ ∘F (P ⓟ′ Q))
 
+-- formulas from https://ncatlab.org/nlab/show/2-category+equipped+with+proarrows#limits
+-- XXX actually prove these are adjoints to composition
+
 _▻_ : ∀ {oC ℓC eC oD ℓD eD oE ℓE eE ℓP eP ℓQ eQ} {C : Category oC ℓC eC} {D : Category oD ℓD eD} {E : Category oE ℓE eE} (P : Profunctor ℓP eP D E) (Q : Profunctor ℓQ eQ C E) → Profunctor (oE ⊔ ℓE ⊔ ℓP ⊔ ℓQ ⊔ eC ⊔ eD ⊔ eE ⊔ eP ⊔ eQ) (oE ⊔ ℓC ⊔ ℓD ⊔ ℓE ⊔ ℓP ⊔ ℓQ ⊔ eE ⊔ eP ⊔ eQ) C D
 _▻_ {oC} {ℓC} {eC} {oD} {ℓD} {eD} {oE} {ℓE} {eE} {ℓP} {eP} {ℓQ} {eQ} {C} {D} {E} P Q = pro (record
   { F₀ = λ (d , c) → Category.hom-setoid (Functors E.op (Setoids _ _)) {LiftSetoids (ℓC ⊔ ℓQ) (eC ⊔ eQ) ∘F appʳ P.bimodule d} {LiftSetoids (ℓD ⊔ ℓP) (eD ⊔ eP) ∘F appʳ Q.bimodule c}
   ; F₁ = λ (df , cf) → record
-    { _⟨$⟩_ = λ ϕ → record
-      { η = λ e → record
-        { _⟨$⟩_ = λ m → lift (Q.₁ (E.id , cf) ⟨$⟩ lower (NaturalTransformation.η ϕ e ⟨$⟩ lift (P.₁ (E.id , df) ⟨$⟩ lower m)))
-        ; cong = λ {i j} eq → lift (cong (Q.₁ (E.id , cf)) (lower (cong (NaturalTransformation.η ϕ e) (lift (cong (P.₁ (E.id , df)) (lower eq))))))
-        }
-      ; commute = λ {eX eY} ef {x y} x≈y → lift (let open SetoidR (Q.₀ _) in
-        begin
-          Q.₁ʳ cf ⟨$⟩ lower (NaturalTransformation.η ϕ eY ⟨$⟩ lift (P.₁ʳ df ⟨$⟩ (P.₁ˡ ef ⟨$⟩ lower x)))
-        ≈⟨ cong (Q.₁ʳ cf) (lower (cong (NaturalTransformation.η ϕ eY) (lift (cong (P.₁ʳ df) (cong (P.₁ˡ ef) (lower x≈y)))))) ⟩
-          Q.₁ʳ cf ⟨$⟩ lower (NaturalTransformation.η ϕ eY ⟨$⟩ lift (P.₁ʳ df ⟨$⟩ (P.₁ˡ ef ⟨$⟩ lower y)))
-        ≈⟨ cong (Q.₁ʳ cf) (lower (cong (NaturalTransformation.η ϕ eY) (lift ([ P.bimodule ]-commute (Setoid.refl (P.₀ _)))))) ⟩
-          Q.₁ʳ cf ⟨$⟩ lower (NaturalTransformation.η ϕ eY ⟨$⟩ lift (P.₁ˡ ef ⟨$⟩ (P.₁ʳ df ⟨$⟩ lower y)))
-        ≈⟨ cong (Q.₁ʳ cf) (lower (NaturalTransformation.commute ϕ ef (lift (Setoid.refl (P.₀ _))))) ⟩
-          Q.₁ʳ cf ⟨$⟩ (Q.₁ˡ ef ⟨$⟩ (lower (NaturalTransformation.η ϕ eX ⟨$⟩ lift (P.₁ʳ df ⟨$⟩ lower y))))
-        ≈⟨ [ Q.bimodule ]-commute (Setoid.refl (Q.₀ _)) ⟩
-          Q.₁ˡ ef ⟨$⟩ (Q.₁ʳ cf ⟨$⟩ (lower (NaturalTransformation.η ϕ eX ⟨$⟩ lift (P.₁ʳ df ⟨$⟩ lower y))))
-        ∎)
-      ; sym-commute = λ {eX eY} ef {x y} x≈y → lift (let open SetoidR (Q.₀ _) in
-        begin
-          Q.₁ˡ ef ⟨$⟩ (Q.₁ʳ cf ⟨$⟩ (lower (NaturalTransformation.η ϕ eX ⟨$⟩ lift (P.₁ʳ df ⟨$⟩ lower x))))
-        ≈˘⟨ [ Q.bimodule ]-commute (Setoid.refl (Q.₀ _)) ⟩
-          Q.₁ʳ cf ⟨$⟩ (Q.₁ˡ ef ⟨$⟩ (lower (NaturalTransformation.η ϕ eX ⟨$⟩ lift (P.₁ʳ df ⟨$⟩ lower x))))
-        ≈˘⟨ cong (Q.₁ʳ cf) (lower (NaturalTransformation.commute ϕ ef (lift (Setoid.refl (P.₀ _))))) ⟩
-          Q.₁ʳ cf ⟨$⟩ lower (NaturalTransformation.η ϕ eY ⟨$⟩ lift (P.₁ˡ ef ⟨$⟩ (P.₁ʳ df ⟨$⟩ lower x)))
-        ≈˘⟨ cong (Q.₁ʳ cf) (lower (cong (NaturalTransformation.η ϕ eY) (lift ([ P.bimodule ]-commute (Setoid.refl (P.₀ _)))))) ⟩
-          Q.₁ʳ cf ⟨$⟩ lower (NaturalTransformation.η ϕ eY ⟨$⟩ lift (P.₁ʳ df ⟨$⟩ (P.₁ˡ ef ⟨$⟩ lower x)))
-        ≈⟨ cong (Q.₁ʳ cf) (lower (cong (NaturalTransformation.η ϕ eY) (lift (cong (P.₁ʳ df) (cong (P.₁ˡ ef) (lower x≈y)))))) ⟩
-          Q.₁ʳ cf ⟨$⟩ lower (NaturalTransformation.η ϕ eY ⟨$⟩ lift (P.₁ʳ df ⟨$⟩ (P.₁ˡ ef ⟨$⟩ lower y)))
-        ∎)
-      }
+    { _⟨$⟩_ = λ ϕ → (LiftSetoids (ℓD ⊔ ℓP) (eD ⊔ eP) ∘ˡ appʳ-nat Q.bimodule cf) ∘ᵥ ϕ ∘ᵥ LiftSetoids (ℓC ⊔ ℓQ) (eC ⊔ eQ) ∘ˡ appʳ-nat P.bimodule df
     ; cong = λ {σ τ} σ≈τ {e x y} x≈y → lift (cong (Q.₁ʳ cf) (lower (σ≈τ (lift (cong (P.₁ʳ df) (lower x≈y))))))
     }
   ; identity = λ {(d , c)} {σ τ} σ≈τ {e x y} x≈y → lift (Q.identity (lower (σ≈τ (lift (P.identity (lower x≈y))))))
   ; homomorphism = λ {(dX , cX) (dY , cY) (dZ , cZ) (df , cf) (dg , cg) σ τ} σ≈τ {e x y} x≈y → lift (Q.homomorphismʳ (lower (σ≈τ (lift (P.homomorphismʳ (lower x≈y))))))
   ; F-resp-≈ = λ {(dA , cA) (dB , cB) (df , cf) (dg , cg)} (df≈dg , cf≈cg) {σ τ} σ≈τ {e x y} x≈y → lift (Q.resp-≈ʳ cf≈cg (lower (σ≈τ (lift (P.resp-≈ʳ df≈dg (lower x≈y))))))
+  })
+  where
+  module P = Profunctor P
+  module Q = Profunctor Q
+  module C = Category C
+  module D = Category D
+  module E = Category E
+
+_◅_ : ∀ {oC ℓC eC oD ℓD eD oE ℓE eE ℓP eP ℓQ eQ} {C : Category oC ℓC eC} {D : Category oD ℓD eD} {E : Category oE ℓE eE} (P : Profunctor ℓP eP C E) (Q : Profunctor ℓQ eQ C D) → Profunctor (oC ⊔ ℓC ⊔ ℓP ⊔ ℓQ ⊔ eC ⊔ eD ⊔ eE ⊔ eP ⊔ eQ) (oC ⊔ ℓC ⊔ ℓD ⊔ ℓE ⊔ ℓP ⊔ ℓQ ⊔ eC ⊔ eP ⊔ eQ) D E
+_◅_ {oC} {ℓC} {eC} {oD} {ℓD} {eD} {oE} {ℓE} {eE} {ℓP} {eP} {ℓQ} {eQ} {C} {D} {E} P Q = pro (record
+  { F₀ = λ (e , d) → Category.hom-setoid (Functors C (Setoids _ _)) {LiftSetoids (ℓE ⊔ ℓP) (eE ⊔ eP) ∘F appˡ Q.bimodule d} {LiftSetoids (ℓD ⊔ ℓQ) (eD ⊔ eQ) ∘F appˡ P.bimodule e}
+  ; F₁ = λ (ef , df) → record
+    { _⟨$⟩_ = λ ϕ → (LiftSetoids (ℓD ⊔ ℓQ) (eD ⊔ eQ) ∘ˡ appˡ-nat P.bimodule ef) ∘ᵥ ϕ ∘ᵥ LiftSetoids (ℓE ⊔ ℓP) (eE ⊔ eP) ∘ˡ appˡ-nat Q.bimodule df
+    ; cong = λ {σ τ} σ≈τ {e x y} x≈y → lift (cong (P.₁ˡ ef) (lower (σ≈τ (lift (cong (Q.₁ˡ df) (lower x≈y))))))
+    }
+  ; identity = λ {(d , c)} {σ τ} σ≈τ {e x y} x≈y → lift (P.identity (lower (σ≈τ (lift (Q.identity (lower x≈y))))))
+  ; homomorphism = λ {(eX , dX) (eY , dY) (eZ , dZ) (ef , df) (eg , dg) σ τ} σ≈τ {c x y} x≈y → lift (P.homomorphismˡ (lower (σ≈τ (lift (Q.homomorphismˡ (lower x≈y))))))
+  ; F-resp-≈ = λ {(eA , dA) (eB , dB) (ef , df) (eg , dg)} (ef≈eg , df≈dg) {σ τ} σ≈τ {c x y} x≈y → lift (P.resp-≈ˡ ef≈eg (lower (σ≈τ (lift (Q.resp-≈ˡ df≈dg (lower x≈y))))))
   })
   where
   module P = Profunctor P
