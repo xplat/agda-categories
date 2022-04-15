@@ -35,7 +35,7 @@ record IsKanComplex (X : ΔSet) : Set (o ⊔ ℓ) where
 --   | | | 
 --   v v v
 -- * * * * *
--- 
+--
 -- Note that this is set up in such a way that we can normalize
 -- as far as possible without pattern matching on 'i' in proofs.
 inner : ∀ {n} → Fin n → Fin (ℕ.suc (ℕ.suc n))

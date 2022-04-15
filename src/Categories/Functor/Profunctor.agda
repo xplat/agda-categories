@@ -127,6 +127,11 @@ record Profunctor {o ℓ e} {o′ ℓ′ e′} ℓ″ e″ (C : Category o ℓ e
       }
     module Inj₂ = Functor Inj₂
 
+  app[_,_] : ∀ {oX ℓX eX oY ℓY eY} {X : Category oX ℓX eX} {Y : Category oY ℓY eY} → Functor Y D → Functor X C → Profunctor (ℓ ⊔ ℓ′ ⊔ ℓ″) (e ⊔ e′ ⊔ e″) X Y
+  app[_,_] {_} {ℓX} {eX} {_} {ℓY} {eY} G F = record
+    { bimodule = LiftSetoids (ℓX ⊔ ℓY) (eX ⊔ eY) ∘F reduce-× (Functor.op G) F
+    }
+
 id : ∀ {o ℓ e} → {C : Category o ℓ e} → Profunctor zero zero C C
 id {C = C} = pro (Hom[ C ][-,-])
 

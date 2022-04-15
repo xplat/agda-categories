@@ -19,8 +19,8 @@ open import Data.Product using (_,_; Σ)
 
 open import Categories.Category using (Category; _[_,_])
 open import Categories.Category.Product using (πʳ; πˡ; _※_)
-open import Categories.Category.Construction.Presheaves using (Presheaves)
-open import Categories.Category.Construction.Functors using (eval)
+open import Categories.Category.Construction.Presheaves using (Presheaves; Presheaves′)
+open import Categories.Category.Construction.Functors using (eval; Postcompose)
 open import Categories.Category.Instance.Setoids using (Setoids)
 open import Categories.Functor using (Functor; _∘F_) renaming (id to idF)
 open import Categories.Functor.Hom using (module Hom; Hom[_][-,_]; Hom[_][-,-])
@@ -48,8 +48,9 @@ module Yoneda (C : Category o ℓ e) where
     module CE = Category.Equiv C using (refl)
     module C = Category C using (op)
 
-  -- The Yoneda embedding functor
-  embed : Functor C (Presheaves C)
+  -- The Yoneda embedding functor.  If you want it relative to a different category of setoids
+  -- (i.e. not Setoids ℓ e), you must explicitly lift.
+  embed : Functor C (Presheaves′ ℓ e C)
   embed = record
     { F₀           = Hom[ C ][-,_]
     ; F₁           = Hom[A,C]⇒Hom[B,C] -- A⇒B induces a NatTrans on the Homs.
@@ -57,6 +58,35 @@ module Yoneda (C : Category o ℓ e) where
     ; homomorphism = λ h₁≈h₂ → ∘-resp-≈ʳ h₁≈h₂ ○ assoc
     ; F-resp-≈     = λ f≈g h≈i → ∘-resp-≈ f≈g h≈i
     }
+
+  -- Using the adjunction between product and product, we get a kind of contravariant Bifunctor
+  yoneda-inverse′ : (o′ ℓ′ : Level) (a : Obj) (F : Presheaf C (Setoids (o′ ⊔ ℓ) (ℓ′ ⊔ e))) →
+    Inverse (Category.hom-setoid (Presheaves C) {LiftSetoids o′ ℓ′ ∘F Functor.F₀ embed a} {F}) (Functor.F₀ F a)
+  yoneda-inverse′ o′ ℓ′ a F = record
+    { f = λ nat → η nat a ⟨$⟩ lift id
+    ; f⁻¹ = λ x → ntHelper record
+        { η       = λ X → record
+          { _⟨$⟩_ = λ X⇒a → F.₁ (lower X⇒a) ⟨$⟩ x
+          ; cong  = λ i≈j → F.F-resp-≈ (lower i≈j) SE.refl
+          }
+        ; commute = λ {X} {Y} Y⇒X {f} {g} f≈g →
+          let module SR = SetoidR (F.₀ Y) in
+          SR.begin
+             F.₁ (id ∘ lower f ∘ Y⇒X) ⟨$⟩ x   SR.≈⟨ F.F-resp-≈ (identityˡ ○ ∘-resp-≈ˡ (lower f≈g)) (SE.refl {x}) ⟩
+             F.₁ (lower g ∘ Y⇒X) ⟨$⟩ x        SR.≈⟨ F.homomorphism SE.refl ⟩
+             F.₁ Y⇒X ⟨$⟩ (F.₁ (lower g) ⟨$⟩ x)
+           SR.∎
+        }
+    ; cong₁ = λ i≈j → i≈j (lift CE.refl)
+    ; cong₂ = λ i≈j y≈z → F.F-resp-≈ (lower y≈z) i≈j
+    ; inverse = (λ Fa → F.identity SE.refl) , λ nat {x} {z} z≈y →
+        let module S     = Setoid (F.₀ x) in
+        S.trans (S.sym (commute nat (lower z) (lift CE.refl)))
+                (cong (η nat x) (lift (identityˡ ○ identityˡ ○ lower z≈y)))
+    }
+    where
+    module F = Functor F using (₀; ₁; F-resp-≈; homomorphism; identity)
+    module SE = Setoid (F.₀ a) using (refl)
 
   -- Using the adjunction between product and product, we get a kind of contravariant Bifunctor
   yoneda-inverse : (a : Obj) (F : Presheaf C (Setoids ℓ e)) →
@@ -90,19 +120,87 @@ module Yoneda (C : Category o ℓ e) where
   private
     -- in this bifunctor, a presheaf from Presheaves C goes from C to Setoids ℓ e,
     -- but the over Setoids has higher level than the hom setoids.
-    Nat[Hom[C][-,c],F] : Bifunctor (Presheaves C) (Category.op C) (Setoids _ _)
+    Nat[Hom[C][-,c],F]′ : ∀ o′ ℓ′ → Bifunctor (Presheaves C) (Category.op C) (Setoids (o ⊔ ℓ ⊔ e ⊔ o′ ⊔ ℓ′) (o ⊔ ℓ ⊔ e ⊔ o′ ⊔ ℓ′))
+    Nat[Hom[C][-,c],F]′ o′ ℓ′ = Hom[ Presheaves C ][-,-] ∘F (Functor.op (Functor.F₀ Postcompose (LiftSetoids o′ ℓ′) ∘F embed) ∘F πʳ ※ πˡ)
+
+    -- version of the above, but with no lift on the Yoneda embedding
+    Nat[Hom[C][-,c],F] : Bifunctor (Presheaves C) (Category.op C) (Setoids (o ⊔ ℓ ⊔ e) (o ⊔ ℓ ⊔ e))
     Nat[Hom[C][-,c],F] = Hom[ Presheaves C ][-,-] ∘F (Functor.op embed ∘F πʳ ※ πˡ)
 
     -- in this bifunctor, it needs to go from Presheaves which maps C to Setoids ℓ e,
     -- so the universe level needs to be lifted.
-    FC : Bifunctor (Presheaves C) (Category.op C) (Setoids _ _)
-    FC = LiftSetoids (o ⊔ ℓ ⊔ e) (o ⊔ ℓ) ∘F eval {C = Category.op C} {D = Setoids ℓ e}
+    FC : ∀ o′ ℓ′ → Bifunctor (Presheaves C) (Category.op C) (Setoids (o ⊔ ℓ ⊔ e ⊔ o′ ⊔ ℓ′) (o ⊔ ℓ ⊔ e ⊔ o′ ⊔ ℓ′))
+    FC o′ ℓ′ = LiftSetoids (o ⊔ e ⊔ ℓ′) (o ⊔ ℓ ⊔ o′) ∘F eval {C = Category.op C} {D = Setoids (o′ ⊔ ℓ) (ℓ′ ⊔ e)}
 
+    module yoneda-inverse′ o′ ℓ′ {a} {F} = Inverse (yoneda-inverse′ o′ ℓ′ a F)
     module yoneda-inverse {a} {F} = Inverse (yoneda-inverse a F)
 
   -- the two bifunctors above are naturally isomorphic.
   -- it is easy to show yoneda-inverse first then to yoneda.
-  yoneda : NaturalIsomorphism Nat[Hom[C][-,c],F] FC
+  yoneda′ : ∀ o′ ℓ′ -> NaturalIsomorphism (Nat[Hom[C][-,c],F]′ o′ ℓ′) (FC o′ ℓ′)
+  yoneda′ o′ ℓ′ = record
+    { F⇒G = ntHelper record
+      { η       = λ where
+        (F , A) → record
+          { _⟨$⟩_ = λ α → lift (yoneda-inverse′.f o′ ℓ′ α)
+          ; cong  = λ i≈j → lift (i≈j (lift CE.refl))
+          }
+      ; commute = λ where
+        {_} {G , B} (α , f) {β} {γ} β≈γ → lift $ cong (η α B) (helper f β γ β≈γ)
+      }
+    ; F⇐G = ntHelper record
+      { η       = λ (F , A) → record
+          { _⟨$⟩_ = λ x → yoneda-inverse′.f⁻¹ o′ ℓ′ (lower x)
+          ; cong  = λ i≈j y≈z → Functor.F-resp-≈ F (lower y≈z) (lower i≈j)
+          }
+      ; commute = λ (α , f) eq eq′ → helper′ α f (lower eq) (lower eq′)
+      }
+    ; iso = λ (F , A) → record
+        { isoˡ = λ {α β} i≈j {X} y≈z →
+          Setoid.trans (Functor.F₀ F X) ( yoneda-inverse′.inverseʳ o′ ℓ′ α {x = X} y≈z) (i≈j (lift CE.refl))
+        ; isoʳ = λ eq → lift (Setoid.trans (Functor.F₀ F A) ( yoneda-inverse′.inverseˡ o′ ℓ′ {F = F} _) (lower eq))
+        }
+    }
+    where helper : {F : Functor C.op (Setoids (o′ ⊔ ℓ) (ℓ′ ⊔ e))}
+                   {A B : Obj} (f : B ⇒ A)
+                   (β γ : NaturalTransformation (LiftSetoids o′ ℓ′ ∘F Hom[ C ][-, A ]) F) →
+                   Setoid._≈_ (Functor.F₀ (Nat[Hom[C][-,c],F]′ o′ ℓ′) (F , A)) β γ →
+                   Setoid._≈_ (Functor.F₀ F B) (η β B ⟨$⟩ lift (f ∘ id)) (Functor.F₁ F f ⟨$⟩ (η γ A ⟨$⟩ lift id))
+          helper {F} {A} {B} f β γ β≈γ = S.begin
+            η β B ⟨$⟩ lift (f ∘ id)       S.≈⟨ cong (η β B) (lift (id-comm ○ (⟺ identityˡ))) ⟩
+            η β B ⟨$⟩ lift (id ∘ id ∘ f)  S.≈⟨ commute β f (lift CE.refl) ⟩
+            F.₁ f ⟨$⟩ (η β A ⟨$⟩ lift id) S.≈⟨ cong (F.₁ f) (β≈γ (lift CE.refl)) ⟩
+            F.₁ f ⟨$⟩ (η γ A ⟨$⟩ lift id) S.∎
+            where
+            module F = Functor F using (₀;₁)
+            module S = SetoidR (F.₀ B)
+
+          helper′ : ∀ {F G : Functor (Category.op C) (Setoids (o′ ⊔ ℓ) (ℓ′ ⊔ e))}
+                      {A B Z : Obj}
+                      {h i : Z ⇒ B}
+                      {X Y : Setoid.Carrier (Functor.F₀ F A)}
+                      (α : NaturalTransformation F G)
+                      (f : B ⇒ A) →
+                      Setoid._≈_ (Functor.F₀ F A) X Y →
+                      h ≈ i →
+                      Setoid._≈_ (Functor.F₀ G Z) (Functor.F₁ G h ⟨$⟩ (η α B ⟨$⟩ (Functor.F₁ F f ⟨$⟩ X)))
+                                          (η α Z ⟨$⟩ (Functor.F₁ F (f ∘ i) ⟨$⟩ Y))
+          helper′ {F} {G} {A} {B} {Z} {h} {i} {X} {Y} α f eq eq′ = S.begin
+            G.₁ h ⟨$⟩ (η α B ⟨$⟩ (F.₁ f ⟨$⟩ X)) S.≈˘⟨ commute α h (S′.sym (cong (F.₁ f) eq)) ⟩
+            η α Z ⟨$⟩ (F.₁ h ⟨$⟩ (F.₁ f ⟨$⟩ Y)) S.≈⟨ cong (η α Z) (F.F-resp-≈ eq′ S′.refl) ⟩
+            η α Z ⟨$⟩ (F.₁ i ⟨$⟩ (F.₁ f ⟨$⟩ Y)) S.≈˘⟨ cong (η α Z) (F.homomorphism (Setoid.refl (F.₀ A))) ⟩
+            η α Z ⟨$⟩ (F.₁ (f ∘ i) ⟨$⟩ Y)        S.∎
+            where
+              module F = Functor F using (₀; ₁; homomorphism; F-resp-≈)
+              module G = Functor G using (₀; ₁)
+              module S = SetoidR (G.₀ Z)
+              module S′ = Setoid (F.₀ B) using (refl; sym)
+
+  module yoneda′ o′ ℓ′ = NaturalIsomorphism (yoneda′ o′ ℓ′)
+
+  -- the two bifunctors above are naturally isomorphic.
+  -- it is easy to show yoneda-inverse first then to yoneda.
+  yoneda : NaturalIsomorphism Nat[Hom[C][-,c],F] (FC zero zero)
   yoneda = record
     { F⇒G = ntHelper record
       { η       = λ where

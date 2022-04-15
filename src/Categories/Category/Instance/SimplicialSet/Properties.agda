@@ -10,7 +10,7 @@ open import Data.Empty.Polymorphic using (⊥; ⊥-elim)
 open import Data.Nat using (ℕ)
 open import Data.Fin using (Fin)
 open import Data.Product using (proj₁; _,_)
-open import Function.Equality using (_⟶_)
+open import Function.Equality using (_⟶_) renaming (_∘_ to _⊚_)
 
 import Relation.Binary.PropositionalEquality as Eq
 
@@ -20,7 +20,7 @@ open import Categories.Category.Instance.Simplex using (Δ; δ; σ; ⟦_⟧; Δ-
 
 open import Categories.Functor using (Functor; _∘F_)
 open import Categories.Functor.Construction.Constant using (const)
-open import Categories.Functor.Construction.LiftSetoids using (LiftSetoids)
+open import Categories.Functor.Construction.LiftSetoids using (LiftSetoids; liftSetoid)
 
 open import Categories.NaturalTransformation using (NaturalTransformation; ntHelper)
 
@@ -111,7 +111,7 @@ boundary-map {n = n} f b = record
 
 --------------------------------------------------------------------------------
 -- Horns
--- 
+--
 -- The idea here is essentially the same as the boundaries, but we exclude the kth
 -- face map as a possible factor.
 
@@ -206,4 +206,4 @@ module _ where
 
 -- Specialized Yoneda lemma
 Δ-yoneda : (X : ΔSet) (n : ℕ) → (Functor.F₀ X n ⟶ (Category.hom-setoid (SimplicialSet o ℓ) {Δ[ n ]} {X}))
-Δ-yoneda X n = {! NaturalTransformation.η Yoneda.yoneda.F⇐G (X , n) !}
+Δ-yoneda X n = NaturalTransformation.η (Yoneda.yoneda′.F⇐G Δ o ℓ) (X , n) ⊚ liftSetoid ℓ o (Functor.F₀ X n)

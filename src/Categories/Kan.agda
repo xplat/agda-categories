@@ -30,6 +30,14 @@ module _ {A : Category o₀ ℓ₀ e₀} {B : Category o₁ ℓ₁ e₁} {C : Ca
     module L = Functor L
     module η = NaturalTransformation η
 
+  record IsLan (L : Functor B C) (η : NaturalTransformation X (L ∘F F)) : Set (o₀ ⊔ ℓ₀ ⊔ o₁ ⊔ ℓ₁ ⊔ e₁ ⊔ o₂ ⊔ ℓ₂ ⊔ e₂) where
+    field
+      σ : (M : Functor B C) → (α : NaturalTransformation X (M ∘F F)) → NaturalTransformation L M
+
+      σ-unique : {M : Functor B C} → {α : NaturalTransformation X (M ∘F F)} →
+                  (σ′ : NaturalTransformation L M) → α ≃ (σ′ ∘ʳ F) ∘ᵥ η → σ′ ≃ σ M α
+      commutes : (M : Functor B C) → (α : NaturalTransformation X (M ∘F F)) → α ≃ (σ M α ∘ʳ F) ∘ᵥ η
+
   record Ran : Set (o₀ ⊔ ℓ₀ ⊔ e₀ ⊔ o₁ ⊔ ℓ₁ ⊔ e₁ ⊔ o₂ ⊔ ℓ₂ ⊔ e₂) where
     field
       R : Functor B C
@@ -43,3 +51,11 @@ module _ {A : Category o₀ ℓ₀ e₀} {B : Category o₁ ℓ₁ e₁} {C : Ca
 
     module R = Functor R
     module ε = NaturalTransformation ε
+
+  record IsRan (R : Functor B C) (ε : NaturalTransformation (R ∘F F) X) : Set (o₀ ⊔ ℓ₀ ⊔ o₁ ⊔ ℓ₁ ⊔ e₁ ⊔ o₂ ⊔ ℓ₂ ⊔ e₂) where
+    field
+      δ : (M : Functor B C) → (α : NaturalTransformation (M ∘F F) X) → NaturalTransformation M R
+
+      δ-unique : {M : Functor B C} → {α : NaturalTransformation (M ∘F F) X} →
+                  (δ′ : NaturalTransformation M R) → α ≃ ε ∘ᵥ (δ′ ∘ʳ F) → δ′ ≃ δ M α
+      commutes : (M : Functor B C) → (α : NaturalTransformation (M ∘F F) X) → α ≃ ε ∘ᵥ (δ M α ∘ʳ F)
